@@ -1,5 +1,8 @@
+// delhivery-pincode-proxy/api/delhivery.js
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*"); // ✅ Allow all origins (you can later restrict to your domain)
+  // CORS Headers are good, keep them.
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
@@ -11,7 +14,7 @@ export default async function handler(req, res) {
   const { pin } = req.query;
 
   if (!pin) {
-    return res.status(400).json({ error: "Missing pin code" });
+    return res.status(400).json({ error: "Missing pin code in query (e.g., ?pin=110001)" });
   }
 
   try {
@@ -19,7 +22,8 @@ export default async function handler(req, res) {
       `https://track.delhivery.com/c/api/pin-codes/json/?filter_codes=${pin}`,
       {
         headers: {
-          Authorization: process.env.DELHIVERY_TOKEN,
+          // *** CRITICAL FIX: Add "Token " prefix to the header ***
+          Authorization: `Token ${process.env.DELHIVERY_TOKEN}`,
           Accept: "application/json",
         },
       }
@@ -28,12 +32,15 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json({ error: "Delhivery API error", details: data });
+      // Forward the error status from Delhivery
+      return res.status(response.status).json({ error: "Delhivery API returned an error", details: data });
     }
 
+    // Return the successful response from Delhivery
     return res.status(200).json(data);
   } catch (error) {
     console.error("Proxy Error:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
+    // Vercel logs will show this
+    return res.status(500).json({ error: "Internal Server Error during fetch operation" });
   }
 }
