@@ -1,38 +1,35 @@
-// /api/delhivery.js
+// delhivery-pincode-proxy/api/delhivery.js
+
 export default async function handler(req, res) {
-  // 🧪 Check that your environment variable exists
-  const hasToken = !!process.env.DELHIVERY_TOKEN;
-  console.log("✅ DELHIVERY_TOKEN loaded:", hasToken);
-
-  if (!hasToken) {
-    return res.status(500).json({
-      error: "❌ DELHIVERY_TOKEN not found on server",
-    });
-  }
-
-  // --- Set CORS headers ---
+  // --- CORS headers ---
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  // --- Handle preflight request ---
+  // --- Handle preflight (OPTIONS) request ---
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  const { pin } = req.query;
+  const { pin, env } = req.query;
 
   if (!pin) {
-    return res.status(400).json({ error: "Missing ?pin parameter" });
+    return res.status(400).json({
+      error: "Missing pin code in query (e.g., ?pin=110001)",
+    });
   }
 
   try {
-    // ✅ Use production Delhivery API (since your token is live)
-    const baseUrl = "https://track.delhivery.com";
+    // --- Choose Delhivery environment ---
+    // Force staging via ?env=staging, otherwise auto-pick based on Vercel environment
+    const baseUrl =
+      env === "staging"
+        ? "https://staging-express.delhivery.com"
+        : process.env.NODE_ENV === "production"
+        ? "https://track.delhivery.com"
+        : "https://staging-express.delhivery.com";
 
     const apiUrl = `${baseUrl}/c/api/pin-codes/json/?filter_codes=${pin}`;
-
-    console.log("📦 Fetching:", apiUrl);
 
     const response = await fetch(apiUrl, {
       headers: {
@@ -44,19 +41,16 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("❌ Delhivery API error:", data);
       return res
         .status(response.status)
         .json({ error: "Delhivery API returned an error", details: data });
     }
 
     return res.status(200).json(data);
-
-  } catch (err) {
-    console.error("🔥 Proxy Error:", err);
-    return res.status(500).json({
-      error: "Internal Server Error",
-      details: err.message,
-    });
+  } catch (error) {
+    console.error("Proxy Error:", error);
+    return res
+      .status(500)
+      .json({ error: "Internal Server Error during fetch operation" });
   }
 }
