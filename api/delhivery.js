@@ -22,12 +22,8 @@ export default async function handler(req, res) {
 
   try {
     // --- Choose Delhivery environment ---
-    const baseUrl =
-      env === "staging"
-        ? "https://staging-express.delhivery.com"
-        : process.env.NODE_ENV === "production"
-        ? "https://track.delhivery.com"
-        : "https://staging-express.delhivery.com";
+   const baseUrl = "https://staging-express.delhivery.com";
+
 
     const apiUrl = `${baseUrl}/c/api/pin-codes/json/?filter_codes=${pin}`;
 
