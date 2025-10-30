@@ -1,32 +1,38 @@
-// delhivery-pincode-proxy/api/delhivery.js
-console.log("Delhivery token loaded:", !!process.env.DELHIVERY_TOKEN);
-
+// /api/delhivery.js
 export default async function handler(req, res) {
-  // --- Always apply CORS headers ---
+  // 🧪 Check that your environment variable exists
+  const hasToken = !!process.env.DELHIVERY_TOKEN;
+  console.log("✅ DELHIVERY_TOKEN loaded:", hasToken);
+
+  if (!hasToken) {
+    return res.status(500).json({
+      error: "❌ DELHIVERY_TOKEN not found on server",
+    });
+  }
+
+  // --- Set CORS headers ---
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  // --- Handle preflight (OPTIONS) request ---
+  // --- Handle preflight request ---
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  const { pin, env } = req.query;
+  const { pin } = req.query;
 
   if (!pin) {
-    res.setHeader("Access-Control-Allow-Origin", "*"); // ensure header for this path
-    return res.status(400).json({
-      error: "Missing pin code in query (e.g., ?pin=110001)",
-    });
+    return res.status(400).json({ error: "Missing ?pin parameter" });
   }
 
   try {
-    // --- Choose Delhivery environment ---
-   const baseUrl = "https://staging-express.delhivery.com";
-
+    // ✅ Use production Delhivery API (since your token is live)
+    const baseUrl = "https://track.delhivery.com";
 
     const apiUrl = `${baseUrl}/c/api/pin-codes/json/?filter_codes=${pin}`;
+
+    console.log("📦 Fetching:", apiUrl);
 
     const response = await fetch(apiUrl, {
       headers: {
@@ -37,10 +43,8 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // --- Always re-apply CORS before sending response ---
-    res.setHeader("Access-Control-Allow-Origin", "*");
-
     if (!response.ok) {
+      console.error("❌ Delhivery API error:", data);
       return res
         .status(response.status)
         .json({ error: "Delhivery API returned an error", details: data });
@@ -48,12 +52,11 @@ export default async function handler(req, res) {
 
     return res.status(200).json(data);
 
-  } catch (error) {
-    console.error("Proxy Error:", error);
-    // --- Re-apply header even on error ---
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    return res
-      .status(500)
-      .json({ error: "Internal Server Error during fetch operation" });
+  } catch (err) {
+    console.error("🔥 Proxy Error:", err);
+    return res.status(500).json({
+      error: "Internal Server Error",
+      details: err.message,
+    });
   }
 }
