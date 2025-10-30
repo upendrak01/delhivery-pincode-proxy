@@ -1,10 +1,10 @@
 export default async function handler(req, res) {
-  // Allow CORS from any origin (or restrict to your Shopify domain)
+  // --- Allow CORS from any origin (Shopify frontend) ---
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight request (OPTIONS)
+  // --- Handle preflight ---
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
@@ -15,16 +15,33 @@ export default async function handler(req, res) {
   }
 
   try {
+    // --- Choose API environment (optional staging support) ---
+    const baseUrl =
+      process.env.NODE_ENV === "production"
+        ? "https://track.delhivery.com"
+        : "https://staging-express.delhivery.com";
+
+    // --- Fetch from Delhivery API ---
     const apiRes = await fetch(
-      `https://track.delhivery.com/c/api/pin-codes/json/?filter_codes=${pin}`,
+      `${baseUrl}/c/api/pin-codes/json/?filter_codes=${pin}`,
       {
         headers: {
-          Authorization: "Token YOUR_DELHIVERY_API_TOKEN", // 🔑 replace this with your real Delhivery token
+          Authorization: `Token ${process.env.DELHIVERY_TOKEN}`,
+          Accept: "application/json",
         },
       }
     );
 
     const data = await apiRes.json();
+
+    // --- Handle API errors gracefully ---
+    if (!apiRes.ok) {
+      return res
+        .status(apiRes.status)
+        .json({ error: "Delhivery API returned an error", details: data });
+    }
+
+    // --- Return data to Shopify frontend ---
     res.status(200).json(data);
 
   } catch (err) {
