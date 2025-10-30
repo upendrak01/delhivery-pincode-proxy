@@ -1,4 +1,5 @@
 // delhivery-pincode-proxy/api/delhivery.js
+console.log("Delhivery token loaded:", !!process.env.DELHIVERY_TOKEN);
 
 export default async function handler(req, res) {
   // --- Always apply CORS headers ---
